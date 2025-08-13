@@ -89,14 +89,14 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        .checkbox-group {
+        .radio-group {
             display: flex;
             gap: 30px;
             justify-content: center;
             margin-top: 10px;
         }
 
-        .checkbox-item {
+        .radio-item {
             display: flex;
             align-items: center;
             gap: 10px;
@@ -106,17 +106,17 @@
             transition: background-color 0.3s ease;
         }
 
-        .checkbox-item:hover {
+        .radio-item:hover {
             background-color: #f0f0f0;
         }
 
-        .checkbox-item input[type="checkbox"] {
+        .radio-item input[type="radio"] {
             width: auto;
             margin: 0;
             transform: scale(1.2);
         }
 
-        .checkbox-item label {
+        .radio-item label {
             margin: 0;
             cursor: pointer;
             font-size: 16px;
@@ -196,18 +196,17 @@
                 padding: 30px 20px;
                 margin: 10px;
             }
-            
-            .checkbox-group {
+
+            .radio-group {
                 flex-direction: column;
                 gap: 15px;
             }
-            
+
             h1 {
                 font-size: 24px;
             }
         }
 
-        /* Loading animation */
         .loading {
             display: none;
             width: 20px;
@@ -234,7 +233,7 @@
         <div class="logo">SCWS</div>
         <h1>Visitor Check-in</h1>
         <p class="subtitle">Santa Cruz Waldorf School</p>
-        
+
         <form id="checkinForm">
             <div class="form-group">
                 <label for="visitorName">Name *</label>
@@ -258,13 +257,13 @@
 
             <div class="form-group">
                 <label>Check-in/Check-out</label>
-                <div class="checkbox-group">
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="timeIn" name="timeIn">
+                <div class="radio-group">
+                    <div class="radio-item">
+                        <input type="radio" id="timeIn" name="checkType" value="Time In" required>
                         <label for="timeIn">Time In</label>
                     </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="timeOut" name="timeOut">
+                    <div class="radio-item">
+                        <input type="radio" id="timeOut" name="checkType" value="Time Out" required>
                         <label for="timeOut">Time Out</label>
                     </div>
                 </div>
@@ -276,7 +275,7 @@
             </button>
 
             <div class="success-message" id="successMessage">
-                ✅ Check-in recorded successfully!
+                ✅ Check-in recorded successfully! The form will reset in 5 seconds.
             </div>
 
             <div class="error-message" id="errorMessage">
@@ -288,7 +287,7 @@
     <script>
         // Configuration - Replace with your Google Apps Script Web App URL
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw2O0-LL6qIwNsNKxsOln3XYgHw-BK-4lYOvoRoEF3j5IcIXCwTYmsf0iBhhdCcnvj4/exec';
-        
+
         // DOM elements
         const form = document.getElementById('checkinForm');
         const submitBtn = document.querySelector('.submit-btn');
@@ -298,8 +297,6 @@
         const errorMessage = document.getElementById('errorMessage');
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
-        const timeInCheckbox = document.getElementById('timeIn');
-        const timeOutCheckbox = document.getElementById('timeOut');
 
         // Status management
         function updateStatus(isConnected) {
@@ -315,28 +312,9 @@
         // Initialize with connected status
         updateStatus(true);
 
-        // Ensure only one checkbox can be selected at a time
-        timeInCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                timeOutCheckbox.checked = false;
-            }
-        });
-
-        timeOutCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                timeInCheckbox.checked = false;
-            }
-        });
-
         // Form submission
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-
-            // Validate that at least one checkbox is selected
-            if (!timeInCheckbox.checked && !timeOutCheckbox.checked) {
-                showError('Please select either Time In or Time Out');
-                return;
-            }
 
             // Show loading state
             submitBtn.disabled = true;
@@ -350,37 +328,32 @@
                 const data = {
                     name: formData.get('name'),
                     purpose: formData.get('purpose'),
-                    timeIn: timeInCheckbox.checked,
-                    timeOut: timeOutCheckbox.checked,
+                    checkType: formData.get('checkType'),
                     timestamp: new Date().toISOString()
                 };
-
-                // For demo purposes, we'll simulate the submission
-                // In production, you would uncomment the fetch call below
                 
-                // const response = await fetch(SCRIPT_URL, {
-                //     method: 'POST',
-                //     headers: {
-                //         'Content-Type': 'application/json',
-                //     },
-                //     body: JSON.stringify(data)
-                // });
+                // --- THIS IS THE CRUCIAL LINE ---
+                // We're sending the data to your Google Apps Script
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
 
-                // if (!response.ok) {
-                //     throw new Error('Network response was not ok');
-                // }
-
-                // Simulate successful submission
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
 
                 // Show success message
                 showSuccess();
-                
-                // Reset form after 2 seconds
+
+                // Reset form after 5 seconds, then reload the page
                 setTimeout(() => {
                     form.reset();
-                    hideMessages();
-                }, 2000);
+                    location.reload(); // Refreshes the page
+                }, 5000);
 
                 updateStatus(true);
 
@@ -412,38 +385,6 @@
             errorMessage.style.display = 'none';
         }
 
-        // Auto-hide messages after 5 seconds
-        function autoHideMessage(element) {
-            if (element.style.display === 'block') {
-                setTimeout(() => {
-                    element.style.display = 'none';
-                }, 5000);
-            }
-        }
-
-        // Watch for message visibility changes
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    autoHideMessage(mutation.target);
-                }
-            });
-        });
-
-        observer.observe(successMessage, { attributes: true });
-        observer.observe(errorMessage, { attributes: true });
-
-        // Prevent form from being submitted multiple times quickly
-        let lastSubmissionTime = 0;
-        form.addEventListener('submit', function(e) {
-            const now = Date.now();
-            if (now - lastSubmissionTime < 3000) {
-                e.preventDefault();
-                showError('Please wait before submitting again.');
-                return;
-            }
-            lastSubmissionTime = now;
-        });
     </script>
 </body>
 </html>
